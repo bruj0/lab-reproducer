@@ -1,0 +1,24 @@
+[
+    {
+        "name": "vault01",
+        "box": "bruj0/hashitools-base",
+        "ram": 1024,
+        "vcpu": 1,
+        "ip_addr": "192.168.4.40"
+    },
+
+    {
+        "name": "vault02",
+        "box": "bruj0/hashitools-base",
+        "ram": 1024,
+        "vcpu": 1,
+        "ip_addr": "192.168.4.41"
+    },
+    {
+        "name": "vault03",
+        "box": "bruj0/hashitools-base",
+        "ram": 1024,
+        "vcpu": 1,
+        "ip_addr": "192.168.4.42"
+    }
+]
