@@ -5,17 +5,6 @@ vault_nodes = ENV["VAULT_NODES"].to_i # 0 to disable
 consul_nodes = ENV["CONSUL_NODES"].to_i # 0 to disable
 binary_type = ENV["BINARY_TYPE"] #prem, pro or oss
 
-cluster_vault = {
-  "vault01" => { :ip => "192.168.3.30", :cpus => 1, :mem => 1024, :box => "bruj0/hashitools-base" },
-  "vault02" => { :ip => "192.168.3.31", :cpus => 1, :mem => 1024, :box => "bruj0/hashitools-base" },
-  "vault03" => { :ip => "192.168.3.32", :cpus => 1, :mem => 1024, :box => "bruj0/hashitools-base" },
-}
-cluster_consul = {
-  "consul01" => { :ip => "192.168.4.40", :cpus => 1, :mem => 1024, :box => "bruj0/hashitools-base" },
-  "consul02" => { :ip => "192.168.4.41", :cpus => 1, :mem => 1024, :box => "bruj0/hashitools-base" },
-  "consul03" => { :ip => "192.168.4.42", :cpus => 1, :mem => 1024, :box => "bruj0/hashitools-base" },
-}
-
 # Read JSON file with box details
 cluster_vault = JSON.parse(File.read(File.join(File.dirname(__FILE__), "vault_cluster.json")))
 cluster_consul = JSON.parse(File.read(File.join(File.dirname(__FILE__), "consul_cluster.json")))
@@ -23,37 +12,96 @@ puts "Requested:
 consul_nodes = #{consul_nodes}
 vault_nodes = #{vault_nodes}
 binary_type = #{binary_type}
-cluster_vault = #{cluster_vault}
-cluster_consul = #{cluster_consul}
 "
+#cluster_vault = #{cluster_vault}
+#cluster_consul = #{cluster_consul}
+
 created_vault = 1
 created_consul = 1
+consul_join_retry = []
+
+cluster_consul.each do |cv|
+  consul_join_retry.push(cv["ip_addr"])
+end
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  cluster_vault.each do |server|
-    if created_vault <= vault_nodes
-      consul_port = 8500 + created_vault
-      ui_port = 8200 + created_vault
-      cluster_port = 8300 + created_vault
-      config.vm.define server["name"] do |cfg|
-        cfg.vm.provider :virtualbox do |vb, override|
-          config.vm.box = server["box"]
-          #config.vm.box_version = "0.22"
-          override.vm.network :private_network, ip: server["ip_addr"]
-          override.vm.network "forwarded_port", guest: 8500, host: consul_port
-          override.vm.network "forwarded_port", guest: 8200, host: ui_port
-          override.vm.network "forwarded_port", guest: 8201, host: cluster_port
-          #override.vm.provision :shell, :path => "scripts/install_vault.sh"
-          #override.vm.provision :shell, :path => "workspace/src/install_go.sh"
-          override.vm.hostname = server["name"]
-          vb.name = server["name"]
-          vb.customize ["modifyvm", :id, "--memory", server['ram']] 
-          vb.customize ["modifyvm", :id, "--cpus", server['vcpu']] 
-          vb.customize ["modifyvm", :id, "--hwvirtex", "on"]
-        end # cfg
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  if consul_nodes >= 1
+    cluster_consul.each do |server|
+      if created_consul <= consul_nodes
+        config.vm.define server["name"] do |cfg|
+          cfg.vm.provider :virtualbox do |vb, override|
+            override.vm.box = server["box"]
+            override.vm.synced_folder "./data/" + server["name"], "/mnt/data", 
+            owner: 998, group: 1001, create: true
+            #config.vm.box_version = "0.22"
+            override.vm.network :private_network, ip: server["ip_addr"],
+                                                  virtualbox__intnet: true,
+                                                  netmask: "255.255.0.0"
+            #override.vm.provision :shell, :path => "workspace/src/install_go.sh"
+            override.vm.hostname = server["name"]
+            vb.name = server["name"]
+            vb.customize ["modifyvm", :id, "--memory", server["ram"]]
+            vb.customize ["modifyvm", :id, "--cpus", server["vcpu"]]
+            vb.customize ["modifyvm", :id, "--hwvirtex", "on"]
+            vb.customize ["modifyvm", :id, "--ioapic", "off"]
+          end # cfg
+          cfg.vm.provision :ansible do |ansible|
+            ansible.playbook = "ansible/consul/playbook.yml"
+            ansible.verbose = true
+            ansible.extra_vars = {
+              cluster_ip: server["ip_addr"],
+              hostname: server["name"],
+              join_retry: consul_join_retry.to_json
+            }
+          end
+          cfg.vm.provision :hosts do |provisioner|
+            provisioner.autoconfigure = true
+            provisioner.sync_hosts = true
+            #          provisioner.add_host '172.16.3.10', ['yum.mirror.local']
+          end
+        end #
+        puts "Consul server #{server["name"]} for a total of #{created_consul} from #{consul_nodes}"
+        created_consul = created_consul + 1
       end #
-      puts "Created #{server["name"]} for a total of #{created_vault} from #{vault_nodes}"
-      created_vault = created_vault + 1
-    end #
-  end #cluster_vault
-end # vagrant
+    end #cluster_consul
+  end # vagrant
+  if vault_nodes >= 1
+    cluster_vault.each do |server|
+      if created_vault <= vault_nodes
+        config.vm.define server["name"] do |cfg|
+          cfg.vm.provider :virtualbox do |vb, override|
+            override.vm.box = server["box"]
+            #config.vm.box_version = "0.22"
+            override.vm.synced_folder ".", "/vagrant", disabled: true
+            override.vm.network :private_network, ip: server["ip_addr"],
+                                                  virtualbox__intnet: true,
+                                                  netmask: "255.255.0.0"
+            #override.vm.provision :shell, :path => "workspace/src/install_go.sh"
+            override.vm.hostname = server["name"]
+            vb.name = server["name"]
+            vb.customize ["modifyvm", :id, "--memory", server["ram"]]
+            vb.customize ["modifyvm", :id, "--cpus", server["vcpu"]]
+            vb.customize ["modifyvm", :id, "--hwvirtex", "on"]
+            vb.customize ["modifyvm", :id, "--ioapic", "off"]
+          end # cfg
+          cfg.vm.provision :ansible do |ansible|
+            ansible.playbook = "ansible/vault/playbook.yml"
+            ansible.verbose = true
+            ansible.extra_vars = {
+              cluster_ip: server["ip_addr"],
+              hostname: server["name"],
+              join_retry: consul_join_retry.to_json
+            }            
+          end
+          cfg.vm.provision :hosts do |provisioner|
+            provisioner.autoconfigure = true
+            provisioner.sync_hosts = true
+          end
+        end #
+        puts "Vault server #{server["name"]} for a total of #{created_vault} from #{vault_nodes}"
+        created_vault = created_vault + 1
+      end #
+    end #cluster_vault
+  end # vagrant
+end
