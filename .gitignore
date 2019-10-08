@@ -1,2 +1,5 @@
 .vagrant
 *~
+data/
+ansible/vault/rootKey/*
+ansible/vault/unsealKey/*

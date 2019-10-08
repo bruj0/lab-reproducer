@@ -1,22 +1,22 @@
 [
     {
-        "name": "vault01",
-        "box": "bruj0/hashitools-base",
+        "name": "consul01",
+        "box": "hashitools-base-local-0.2",
         "ram": 1024,
         "vcpu": 1,
         "ip_addr": "192.168.4.40"
     },
 
     {
-        "name": "vault02",
-        "box": "bruj0/hashitools-base",
+        "name": "consul02",
+        "box": "hashitools-base-local-0.2",
         "ram": 1024,
         "vcpu": 1,
         "ip_addr": "192.168.4.41"
     },
     {
-        "name": "vault03",
-        "box": "bruj0/hashitools-base",
+        "name": "consul03",
+        "box": "hashitools-base-local-0.2",
         "ram": 1024,
         "vcpu": 1,
         "ip_addr": "192.168.4.42"
