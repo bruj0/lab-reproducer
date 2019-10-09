@@ -3,3 +3,5 @@
 data/
 ansible/vault/rootKey/*
 ansible/vault/unsealKey/*
+.pytest_cache
+__pycache__
