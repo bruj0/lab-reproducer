@@ -4,6 +4,8 @@ VAGRANTFILE_API_VERSION = "2"
 vault_nodes = ENV["VAULT_NODES"].to_i # 0 to disable
 consul_nodes = ENV["CONSUL_NODES"].to_i # 0 to disable
 binary_type = ENV["BINARY_TYPE"] #prem, pro or oss
+vault_playbook =  ENV["VAULT_PLAYBOOK"] || "ansible/vault/playbook.yml"
+
 
 # Read JSON file with box details
 cluster_vault = JSON.parse(File.read(File.join(File.dirname(__FILE__), "vault_cluster.json")))
@@ -12,6 +14,7 @@ puts "Requested:
 consul_nodes = #{consul_nodes}
 vault_nodes = #{vault_nodes}
 binary_type = #{binary_type}
+vault_playbook = #{vault_playbook}
 "
 #cluster_vault = #{cluster_vault}
 #cluster_consul = #{cluster_consul}
@@ -38,6 +41,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             override.vm.network :private_network, ip: server["ip_addr"],
                                                   virtualbox__intnet: true,
                                                   netmask: "255.255.0.0"
+            override.vm.network "forwarded_port", guest: 8500, host: 8500 + created_consul
             #override.vm.provision :shell, :path => "workspace/src/install_go.sh"
             override.vm.hostname = server["name"]
             vb.name = server["name"]
@@ -77,6 +81,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             override.vm.network :private_network, ip: server["ip_addr"],
                                                   virtualbox__intnet: true,
                                                   netmask: "255.255.0.0"
+            override.vm.network "forwarded_port", guest: 8200, host: 8200 + created_vault                                                
             #override.vm.provision :shell, :path => "workspace/src/install_go.sh"
             override.vm.hostname = server["name"]
             vb.name = server["name"]
@@ -86,7 +91,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             vb.customize ["modifyvm", :id, "--ioapic", "off"]
           end # cfg
           cfg.vm.provision :ansible do |ansible|
-            ansible.playbook = "ansible/vault/playbook.yml"
+            ansible.playbook = vault_playbook
             ansible.verbose = true
             ansible.extra_vars = {
               cluster_ip: server["ip_addr"],
