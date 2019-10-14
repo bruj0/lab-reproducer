@@ -12,7 +12,7 @@
   delegate_to: localhost
   become: no
 
-- name: Initialize Vault operator
+- name: Initialise Vault operator
   shell: vault operator init -key-shares=5 -key-threshold=3 -format json
   environment:
     VAULT_ADDR: "http://127.0.0.1:8200"

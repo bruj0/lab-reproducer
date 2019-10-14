@@ -1,8 +1,10 @@
 .vagrant
 *~
 data/
-ansible/vault/rootKey/*
-ansible/vault/unsealKey/*
+ansible/vault/rootKey/
+ansible/vault/unsealKey/
+ansible/vault-pki/rootKey/
+ansible/vault-pki/unsealKey/
 .pytest_cache
 __pycache__
 .vscode

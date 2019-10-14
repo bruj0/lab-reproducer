@@ -4,6 +4,7 @@ VAGRANTFILE_API_VERSION = "2"
 vault_nodes = ENV["VAULT_NODES"].to_i # 0 to disable
 consul_nodes = ENV["CONSUL_NODES"].to_i # 0 to disable
 binary_type = ENV["BINARY_TYPE"] #prem, pro or oss
+pki_nodes = ENV["PKI_NODES"].to_i # 0 or 1
 vault_playbook =  ENV["VAULT_PLAYBOOK"] || "ansible/vault/playbook.yml"
 
 
@@ -13,6 +14,7 @@ cluster_consul = JSON.parse(File.read(File.join(File.dirname(__FILE__), "consul_
 puts "Requested:
 consul_nodes = #{consul_nodes}
 vault_nodes = #{vault_nodes}
+pki_nodes = #{vault_nodes}
 binary_type = #{binary_type}
 vault_playbook = #{vault_playbook}
 "
@@ -29,6 +31,39 @@ end
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.synced_folder ".", "/vagrant", disabled: true
+  if pki_nodes == 1
+    config.vm.define "pki_vault" do |cfg|
+      cfg.vm.provider :virtualbox do |vb, override|
+        override.vm.box = "bruj0/hashitools-base"
+        override.vm.synced_folder "./data/pki_vault" , "/mnt/data", 
+        owner: 998, group: 1001, create: true
+        #config.vm.box_version = "0.22"
+        override.vm.network :private_network, ip: "192.168.5.2",
+                                              virtualbox__intnet: true,
+                                              netmask: "255.255.0.0"
+        override.vm.network "forwarded_port", guest: 8200, host: 8300 
+        override.vm.hostname = "pki01"
+        vb.name = "pki_vault"
+        vb.customize ["modifyvm", :id, "--memory", "1024"]
+        vb.customize ["modifyvm", :id, "--cpus", "1"]
+        vb.customize ["modifyvm", :id, "--hwvirtex", "on"]
+        vb.customize ["modifyvm", :id, "--ioapic", "off"]
+      end # cfg
+      cfg.vm.provision :ansible do |ansible|
+        ansible.playbook = "ansible/vault-pki/playbook.yml"
+        ansible.verbose = true
+        ansible.extra_vars = {
+          cluster_ip: "192.168.5.2",
+          hostname: "pki_vault",
+        }
+      end
+      cfg.vm.provision :hosts do |provisioner|
+        provisioner.autoconfigure = true
+        provisioner.sync_hosts = true
+        #          provisioner.add_host '172.16.3.10', ['yum.mirror.local']
+      end
+    end
+  end
   if consul_nodes >= 1
     cluster_consul.each do |server|
       if created_consul <= consul_nodes

@@ -1,19 +1,19 @@
 import json
 
 
-def save_response(response, filenane):
+def save_response(response, filename):
     try:
-        file = open(filenane, 'w')
+        file = open(filename, 'w')
         json.dump(response.json(), file)
         file.close()
     except FileNotFoundError:
-        print(filenane + " not found. ")
+        print(filename + " not found. ")
 
 
-def save_response_part(response, filenane, part):
+def save_response_part(response, filename, part):
     try:
-        file = open(filenane, 'w')
+        file = open(filename, 'w')
         json.dump(response.json()[part], file)
         file.close()
     except FileNotFoundError:
-        print(filenane + " not found. ")
+        print(filename + " not found. ")
